@@ -358,7 +358,10 @@ pub struct ModelInfo {
 }
 
 pub mod gemini;
+pub mod multimodal;
+
 pub use gemini::GeminiProvider;
+pub use multimodal::{AspectRatio, GenerateImageRequest, GenerateVideoRequest, GeneratedImage, GeneratedVideo, MultimodalClient};
 
 pub mod catalog {
     use super::*;
