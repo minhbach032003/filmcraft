@@ -324,7 +324,7 @@ fn base64_encode(input: &[u8]) -> String {
     out
 }
 
-fn base64_decode(input: &str) -> Result<Vec<u8>, AiError> {
+pub(crate) fn base64_decode(input: &str) -> Result<Vec<u8>, AiError> {
     let mut table = [255u8; 256];
     for (i, &b) in B64_ALPHABET.iter().enumerate() {
         table[b as usize] = i as u8;

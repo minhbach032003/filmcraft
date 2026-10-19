@@ -16,6 +16,7 @@ net = ["dep:ureq", "dep:rustls", "dep:rustls-rustcrypto"]
 
 [dependencies]
 filmcraft-time = { workspace = true }
+filmcraft-tts = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

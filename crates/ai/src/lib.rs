@@ -359,9 +359,11 @@ pub struct ModelInfo {
 
 pub mod gemini;
 pub mod multimodal;
+pub mod tts;
 
 pub use gemini::GeminiProvider;
 pub use multimodal::{AspectRatio, GenerateImageRequest, GenerateVideoRequest, GeneratedImage, GeneratedVideo, MultimodalClient};
+pub use tts::{SynthesizedDialogue, VoiceDirector};
 
 pub mod catalog {
     use super::*;
