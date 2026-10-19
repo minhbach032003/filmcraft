@@ -17,6 +17,7 @@ pub struct AiDirectorDraft {
     pub api_key_input: String,
     pub script_input: String,
     pub script_title: String,
+    pub style_prompt: String,
     pub plan_mode: String,
     pub plan_json: String,
     pub status_message: String,
@@ -31,6 +32,7 @@ impl Default for AiDirectorDraft {
             api_key_input: String::new(),
             script_input: "INT. COCKPIT - NIGHT\n\nALICE\nSystems are holding. Initiating descent.\n".to_string(),
             script_title: "Descent".to_string(),
+            style_prompt: "Anime / Studio Ghibli style, hand-drawn 2D animation, vibrant colors, lush painted backgrounds".to_string(),
             plan_mode: "fountain".to_string(),
             plan_json: String::new(),
             status_message: "Ready".to_string(),
@@ -123,6 +125,11 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
             ui.radio_value(&mut draft.plan_mode, "ai".into(), "Gemini AI");
         });
 
+        ui.horizontal(|ui| {
+            ui.label("Animation Style / Look:");
+            ui.add(egui::TextEdit::singleline(&mut draft.style_prompt).desired_width(400.0));
+        });
+
         ui.label("Script Text (Fountain / Screenplay format):");
         let script_edit = egui::TextEdit::multiline(&mut draft.script_input).desired_width(f32::INFINITY).desired_rows(8);
         ui.add(script_edit);
@@ -138,6 +145,7 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
                         "script": draft.script_input,
                         "title": draft.script_title,
                         "mode": draft.plan_mode,
+                        "style": draft.style_prompt,
                         "dry_run": false
                     }),
                 ) {
@@ -159,7 +167,8 @@ pub fn show(app: &mut FilmcraftApp, ui: &mut egui::Ui, rect: Rect) {
                         "ai.buildSequence",
                         json!({
                             "plan": plan_obj,
-                            "name": draft.script_title
+                            "name": draft.script_title,
+                            "style": draft.style_prompt
                         }),
                     ) {
                         Ok(res) => {

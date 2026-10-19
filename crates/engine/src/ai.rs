@@ -138,6 +138,7 @@ pub(crate) fn commands() -> Vec<CommandSpec> {
             let script_text = str_p(p, "script").ok_or_else(|| bad("ai.planScript", "Missing required 'script'"))?;
             let title = str_p(p, "title").unwrap_or("Untitled Script");
             let mode = str_p(p, "mode").unwrap_or("fountain");
+            let style_opt = str_p(p, "style");
             let dry_run = p.get("dry_run").and_then(|v| v.as_bool()).unwrap_or(false);
 
             if mode == "fountain" {
@@ -158,9 +159,14 @@ pub(crate) fn commands() -> Vec<CommandSpec> {
 
             let key = get_active_api_key().ok_or_else(|| bad("ai.planScript", "No Gemini API key available for AI planning"))?;
 
+            let mut script_payload = script_text.to_string();
+            if let Some(style) = style_opt {
+                script_payload = format!("[Animation Style: {style}]\n\n{script_payload}");
+            }
+
             let chars = s.project.characters.values().cloned().collect::<Vec<_>>();
             let (user_prompt, sys_inst, schema) = build_story_prompt(
-                script_text,
+                &script_payload,
                 &chars
                     .into_iter()
                     .map(|c| filmcraft_story::Character {
@@ -196,7 +202,7 @@ pub(crate) fn commands() -> Vec<CommandSpec> {
             "ai.buildSequence",
             "Build Timeline Sequence from StoryPlan",
             &["AI"],
-            r#"{"plan":StoryPlan, "name"?:str, "fps"?:f64=24.0, "width"?:u32=1920, "height"?:u32=1080}"#,
+            r#"{"plan":StoryPlan, "name"?:str, "fps"?:f64=24.0, "width"?:u32=1920, "height"?:u32=1080, "style"?:str}"#,
             always,
             |s, p| {
                 let plan_val = p.get("plan").ok_or_else(|| bad("ai.buildSequence", "Missing required 'plan' object"))?;
@@ -204,6 +210,7 @@ pub(crate) fn commands() -> Vec<CommandSpec> {
                 let plan = parse_plan(&plan_str).map_err(|e| bad("ai.buildSequence", format!("Invalid StoryPlan: {e}")))?;
 
                 let seq_name = str_p(p, "name").unwrap_or(&plan.title);
+                let style_suffix = str_p(p, "style").map(|s| format!(" [{s}]")).unwrap_or_default();
                 let width = p.get("width").and_then(|v| v.as_u64()).unwrap_or(1920) as u32;
                 let height = p.get("height").and_then(|v| v.as_u64()).unwrap_or(1080) as u32;
                 let fps_val = p.get("fps").and_then(|v| v.as_f64()).unwrap_or(24.0);
@@ -235,7 +242,7 @@ pub(crate) fn commands() -> Vec<CommandSpec> {
                             let shot_duration = shot.duration;
                             let shot_start = timeline_pos;
 
-                            let shot_item_name = format!("Shot {}.{}: {}", scene.scene_number, shot.shot_number, shot.description);
+                            let shot_item_name = format!("Shot {}.{}: {}{}", scene.scene_number, shot.shot_number, shot.description, style_suffix);
                             let item_id = proj.add_item(
                                 &shot_item_name,
                                 filmcraft_project::Label::Iris,
