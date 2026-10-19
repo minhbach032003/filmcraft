@@ -1,0 +1,27 @@
+[package]
+name = "filmcraft-ai"
+description = "FilmCraft AI integration: provider abstractions, transport, model catalog, cost estimation, and background job coordination"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[lints]
+workspace = true
+
+[features]
+default = []
+# Network transport over HTTPS (pure-Rust TLS: rustls + RustCrypto, OS certificate verification).
+net = ["dep:ureq", "dep:rustls", "dep:rustls-rustcrypto"]
+
+[dependencies]
+filmcraft-time = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+log = { workspace = true }
+ureq = { version = "3", default-features = false, features = ["rustls-no-provider", "platform-verifier"], optional = true }
+rustls = { version = "0.23", default-features = false, optional = true }
+rustls-rustcrypto = { version = "0.0.2-alpha", optional = true }
+
+[dev-dependencies]
