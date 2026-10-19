@@ -357,6 +357,9 @@ pub struct ModelInfo {
     pub pricing: Pricing,
 }
 
+pub mod gemini;
+pub use gemini::GeminiProvider;
+
 pub mod catalog {
     use super::*;
 
