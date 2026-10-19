@@ -211,126 +211,121 @@ pub(crate) fn commands() -> Vec<CommandSpec> {
 
                 let settings = filmcraft_project::SequenceSettings { width, height, frame_rate, sample_rate: 48000, ..Default::default() };
 
-                let mut proj = (*s.project).clone();
-                let seq_id = proj.new_sequence(seq_name, settings, 2, 2, None);
+                let (seq_id, shot_count, total_duration) = s.edit("AI Build Sequence", |proj, state| {
+                    let seq_id = proj.new_sequence(seq_name, settings, 2, 2, None);
 
-                let mut timeline_pos = filmcraft_time::Tick::ZERO;
-                let mut shot_count = 0usize;
-                let mut captions_vec = Vec::new();
-                let mut markers_vec = Vec::new();
+                    let mut timeline_pos = filmcraft_time::Tick::ZERO;
+                    let mut shot_count = 0usize;
+                    let mut captions_vec = Vec::new();
+                    let mut markers_vec = Vec::new();
 
-                for scene in &plan.scenes {
-                    // Marker for each scene start
-                    markers_vec.push(filmcraft_project::Marker {
-                        id: filmcraft_project::MarkerId(proj.alloc_id()),
-                        start: timeline_pos,
-                        duration: filmcraft_time::Tick::ZERO,
-                        name: format!("Scene {}: {}", scene.scene_number, scene.heading),
-                        comment: scene.summary.clone(),
-                        kind: filmcraft_project::MarkerKind::Comment,
-                        color: filmcraft_project::Label::Cerulean,
-                    });
+                    for scene in &plan.scenes {
+                        markers_vec.push(filmcraft_project::Marker {
+                            id: filmcraft_project::MarkerId(proj.alloc_id()),
+                            start: timeline_pos,
+                            duration: filmcraft_time::Tick::ZERO,
+                            name: format!("Scene {}: {}", scene.scene_number, scene.heading),
+                            comment: scene.summary.clone(),
+                            kind: filmcraft_project::MarkerKind::Comment,
+                            color: filmcraft_project::Label::Cerulean,
+                        });
 
-                    for shot in &scene.shots {
-                        shot_count += 1;
-                        let shot_duration = shot.duration;
-                        let shot_start = timeline_pos;
+                        for shot in &scene.shots {
+                            shot_count += 1;
+                            let shot_duration = shot.duration;
+                            let shot_start = timeline_pos;
 
-                        // Create placeholder graphic media item for the shot visual
-                        let shot_item_name = format!("Shot {}.{}: {}", scene.scene_number, shot.shot_number, shot.description);
-                        let item_id = proj.add_item(
-                            &shot_item_name,
-                            filmcraft_project::Label::Iris,
-                            filmcraft_project::ItemKind::Graphic { width, height, rate: frame_rate },
-                            None,
-                        );
+                            let shot_item_name = format!("Shot {}.{}: {}", scene.scene_number, shot.shot_number, shot.description);
+                            let item_id = proj.add_item(
+                                &shot_item_name,
+                                filmcraft_project::Label::Iris,
+                                filmcraft_project::ItemKind::Graphic { width, height, rate: frame_rate },
+                                None,
+                            );
 
-                        let track_item = filmcraft_project::TrackItem {
-                            id: filmcraft_project::ClipId(proj.alloc_id()),
-                            item: item_id,
-                            name: shot_item_name,
-                            label: filmcraft_project::Label::Iris,
-                            start: shot_start,
-                            duration: shot_duration,
-                            source_in: filmcraft_time::Tick::ZERO,
-                            speed: 1.0,
-                            reverse: false,
-                            enabled: true,
-                            link: None,
-                            group: None,
-                            effects: Vec::new(),
-                            markers: Vec::new(),
-                            gain_db: 0.0,
-                            frame_hold: None,
-                            scale_to_frame: true,
-                            essential: None,
-                            multicam: None,
-                            time_interpolation: filmcraft_project::TimeInterpolation::FrameSampling,
-                            hold_filters: false,
-                            field_options: None,
-                            source_channels: Vec::new(),
-                            audio_stream: 0,
-                            graphic: None,
-                        };
+                            let track_item = filmcraft_project::TrackItem {
+                                id: filmcraft_project::ClipId(proj.alloc_id()),
+                                item: item_id,
+                                name: shot_item_name,
+                                label: filmcraft_project::Label::Iris,
+                                start: shot_start,
+                                duration: shot_duration,
+                                source_in: filmcraft_time::Tick::ZERO,
+                                speed: 1.0,
+                                reverse: false,
+                                enabled: true,
+                                link: None,
+                                group: None,
+                                effects: Vec::new(),
+                                markers: Vec::new(),
+                                gain_db: 0.0,
+                                frame_hold: None,
+                                scale_to_frame: true,
+                                essential: None,
+                                multicam: None,
+                                time_interpolation: filmcraft_project::TimeInterpolation::FrameSampling,
+                                hold_filters: false,
+                                field_options: None,
+                                source_channels: Vec::new(),
+                                audio_stream: 0,
+                                graphic: None,
+                            };
 
-                        // Add to video track 0
-                        if let Some(seq) = proj.sequence_mut(seq_id)
-                            && let Some(v_track) = seq.video_tracks.get_mut(0)
-                        {
-                            v_track.items.push(track_item);
-                        }
-
-                        // Dialogue captions
-                        let mut dialogue_offset = filmcraft_time::Tick::ZERO;
-                        for dlg in &shot.dialogues {
-                            let dlg_duration = dlg.estimated_duration.unwrap_or_else(|| {
-                                let words = dlg.text.split_whitespace().count().max(1);
-                                filmcraft_time::Tick::from_seconds_f64((words as f64 / 2.5).clamp(1.5, 30.0))
-                            });
-
-                            let cap_start = shot_start + dialogue_offset;
-                            let remaining = if shot_duration > dialogue_offset { shot_duration - dialogue_offset } else { filmcraft_time::Tick::ZERO };
-                            let cap_dur = dlg_duration.min(remaining);
-
-                            if cap_dur > filmcraft_time::Tick::ZERO {
-                                captions_vec.push(filmcraft_project::Caption {
-                                    id: filmcraft_project::ClipId(proj.alloc_id()),
-                                    start: cap_start,
-                                    duration: cap_dur,
-                                    text: dlg.text.clone(),
-                                    speaker: Some(dlg.character_id.clone()),
-                                    cue_id: None,
-                                    settings: String::new(),
-                                });
+                            if let Some(seq) = proj.sequence_mut(seq_id)
+                                && let Some(v_track) = seq.video_tracks.get_mut(0)
+                            {
+                                v_track.items.push(track_item);
                             }
-                            dialogue_offset += dlg_duration;
+
+                            let mut dialogue_offset = filmcraft_time::Tick::ZERO;
+                            for dlg in &shot.dialogues {
+                                let dlg_duration = dlg.estimated_duration.unwrap_or_else(|| {
+                                    let words = dlg.text.split_whitespace().count().max(1);
+                                    filmcraft_time::Tick::from_seconds_f64((words as f64 / 2.5).clamp(1.5, 30.0))
+                                });
+
+                                let cap_start = shot_start + dialogue_offset;
+                                let remaining = if shot_duration > dialogue_offset { shot_duration - dialogue_offset } else { filmcraft_time::Tick::ZERO };
+                                let cap_dur = dlg_duration.min(remaining);
+
+                                if cap_dur > filmcraft_time::Tick::ZERO {
+                                    captions_vec.push(filmcraft_project::Caption {
+                                        id: filmcraft_project::ClipId(proj.alloc_id()),
+                                        start: cap_start,
+                                        duration: cap_dur,
+                                        text: dlg.text.clone(),
+                                        speaker: Some(dlg.character_id.clone()),
+                                        cue_id: None,
+                                        settings: String::new(),
+                                    });
+                                }
+                                dialogue_offset += dlg_duration;
+                            }
+
+                            timeline_pos += shot_duration;
                         }
-
-                        timeline_pos += shot_duration;
                     }
-                }
 
-                // Attach markers and caption track to sequence
-                let cap_track_id = filmcraft_project::TrackId(proj.alloc_id());
-                if let Some(seq) = proj.sequence_mut(seq_id) {
-                    seq.markers = markers_vec;
-                    if !captions_vec.is_empty() {
-                        let mut cap_track =
-                            filmcraft_project::CaptionTrack::new(cap_track_id, "AI Dialogue".to_string(), filmcraft_project::CaptionFormat::Subtitle);
-                        cap_track.captions = captions_vec;
-                        seq.caption_tracks.push(cap_track);
+                    let cap_track_id = filmcraft_project::TrackId(proj.alloc_id());
+                    if let Some(seq) = proj.sequence_mut(seq_id) {
+                        seq.markers = markers_vec;
+                        if !captions_vec.is_empty() {
+                            let mut cap_track =
+                                filmcraft_project::CaptionTrack::new(cap_track_id, "AI Dialogue".to_string(), filmcraft_project::CaptionFormat::Subtitle);
+                            cap_track.captions = captions_vec;
+                            seq.caption_tracks.push(cap_track);
+                        }
                     }
-                }
 
-                s.project = Arc::new(proj);
-                s.state.active_sequence = Some(seq_id);
-                s.revision += 1;
+                    state.active_sequence = Some(seq_id);
+                    Ok((seq_id, shot_count, timeline_pos))
+                })?;
 
                 Ok(json!({
                     "status": "ok",
                     "sequence_id": seq_id.0,
                     "shot_count": shot_count,
-                    "total_duration_ticks": timeline_pos.0,
+                    "total_duration_ticks": total_duration.0,
                 }))
             },
         ),
