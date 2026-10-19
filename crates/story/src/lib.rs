@@ -14,7 +14,38 @@ use std::collections::HashSet;
 use filmcraft_time::Tick;
 use serde::{Deserialize, Serialize};
 
-/// Maximum title length in bytes.
+pub mod fountain;
+pub mod prompt;
+
+pub use fountain::parse_fountain;
+pub use prompt::build_story_prompt;
+
+/// Parse and validate a story plan JSON string.
+///
+/// Strips markdown fences if present (e.g. ```json ... ```) and runs strict validation:
+/// non-empty scenes, positive durations, sequential numbers, character ID checks, length bounds.
+pub fn parse_plan(json_str: &str) -> Result<StoryPlan, StoryError> {
+    let trimmed = json_str.trim();
+    if trimmed.is_empty() {
+        return Err(StoryError::Serialization("Empty JSON input".to_string()));
+    }
+
+    // Strip Markdown code block delimiters if returned by an LLM
+    let clean_json = if trimmed.starts_with("```") {
+        let lines: Vec<&str> = trimmed.lines().collect();
+        if lines.len() >= 2 && lines.first().map(|l| l.starts_with("```")).unwrap_or(false) && lines.last().map(|l| l.starts_with("```")).unwrap_or(false) {
+            lines[1..lines.len() - 1].join("\n")
+        } else {
+            trimmed.to_string()
+        }
+    } else {
+        trimmed.to_string()
+    };
+
+    let plan = StoryPlan::from_json(&clean_json)?;
+    plan.validate()?;
+    Ok(plan)
+}
 pub const MAX_TITLE_BYTES: usize = 1024;
 /// Maximum logline or summary length in bytes.
 pub const MAX_TEXT_BYTES: usize = 64 * 1024;
