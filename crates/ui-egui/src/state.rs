@@ -485,6 +485,9 @@ pub struct UiState {
     /// Text to Speech panel: the script and voice settings being written or edited.
     #[serde(default)]
     pub tts: crate::panels::tts::TtsDraft,
+    /// AI Director panel: script, characters, and generation parameters.
+    #[serde(default)]
+    pub ai_director_draft: crate::panels::ai_director::AiDirectorDraft,
     /// Export mode: settings, preset, destination, range, the Preset Manager and Quick Export.
     #[serde(default)]
     pub export: crate::panels::export_mode::ExportUi,
@@ -983,6 +986,7 @@ impl Default for UiState {
             keyframe_selection: Vec::new(),
             essential_sound_tab: "Edit".into(),
             tts: Default::default(),
+            ai_director_draft: Default::default(),
             export: Default::default(),
             text_tab: captions_tab(),
             caption_search: String::new(),
