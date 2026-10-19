@@ -10,6 +10,7 @@
 #![cfg_attr(not(test), deny(clippy::unwrap_used, clippy::expect_used, clippy::panic, clippy::unimplemented, clippy::todo, clippy::unreachable))]
 
 pub mod caption;
+pub mod character;
 pub mod effect;
 pub mod essential;
 pub mod find;
@@ -32,6 +33,7 @@ use filmcraft_time::{FrameRate, TICKS_PER_SECOND, Tick, TimeRange};
 use serde::{Deserialize, Serialize};
 
 pub use caption::{Caption, CaptionAlign, CaptionAnchor, CaptionFormat, CaptionStyle, CaptionTrack, plain_text};
+pub use character::{CharacterProvenance, CharacterVoice, ProjectCharacter};
 pub use effect::{EffectDef, EffectInstance, EffectKind, ParamDef, ParamKind, effect_defs, find_effect};
 pub use essential::{AudioType, EssentialSound};
 pub use find::{FindOp, FindQuery, FindRow, SearchBin};
@@ -1257,6 +1259,10 @@ pub struct Project {
     /// instructions for whoever opens it next, frame numbers and the like. Schema v15.
     #[serde(default, skip_serializing_if = "String::is_empty")]
     pub notes: String,
+    /// Character library (AI Director): characters, descriptions, voice mappings, and reference
+    /// media assets stored with the project. Schema v16.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    pub characters: BTreeMap<String, ProjectCharacter>,
 }
 
 /// How a sequence is shown in the Timeline panel: its zoom, scroll position and track heights.
@@ -1353,6 +1359,7 @@ impl Project {
             source_graphics: BTreeMap::new(),
             narrations: BTreeMap::new(),
             notes: String::new(),
+            characters: BTreeMap::new(),
         }
     }
 
@@ -1416,6 +1423,35 @@ impl Project {
             moved += 1;
         }
         Some(moved)
+    }
+
+    pub fn character(&self, id: &str) -> Option<&ProjectCharacter> {
+        self.characters.get(id)
+    }
+    pub fn character_mut(&mut self, id: &str) -> Option<&mut ProjectCharacter> {
+        self.characters.get_mut(id)
+    }
+    pub fn add_character(&mut self, character: ProjectCharacter) -> Result<(), String> {
+        character.validate()?;
+        self.characters.insert(character.id.clone(), character);
+        Ok(())
+    }
+    pub fn remove_character(&mut self, id: &str) -> Option<ProjectCharacter> {
+        self.characters.remove(id)
+    }
+    pub fn validate_characters(&self) -> Result<(), String> {
+        for (id, ch) in &self.characters {
+            if id != &ch.id {
+                return Err(format!("Character map key '{id}' does not match character id '{}'", ch.id));
+            }
+            ch.validate()?;
+            for &ref_id in &ch.reference_item_ids {
+                if !self.items.contains_key(&ref_id) {
+                    return Err(format!("Character '{id}' references non-existent media item {:?}", ref_id));
+                }
+            }
+        }
+        Ok(())
     }
 
     pub fn item(&self, id: ItemId) -> Option<&ProjectItem> {
